@@ -1,0 +1,10 @@
+fastapi
+numpy
+uvicorn
+pydantic
+pymongo
+bcrypt
+pyjwt
+torch
+torchvision
+tensorflow
