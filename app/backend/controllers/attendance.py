@@ -22,7 +22,10 @@ class AttendanceController:
 
     # Add new attendance record
     async def add_attendance(self, attendance_data: AttendanceSchema) -> dict:
-        existing = await self.collection.find_one({"teacher_id": attendance_data["teacher_id"], "teacher_date": attendance_data["teacher_date"],"classroom_id": attendance_data["classroom_id"]})
+        existing = await self.collection.find_one({
+            "teacher_id": attendance_data["teacher_id"], 
+            "teacher_date": attendance_data["teacher_date"],
+            "classroom_id": attendance_data["classroom_id"]})
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

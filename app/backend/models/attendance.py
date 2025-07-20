@@ -1,12 +1,25 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
+# class AttendanceSchema(BaseModel):
+#     teacher_id: str 
+#     classroom_id: str
+#     teacher_name: str
+#     teacher_date: dict 
+#     confidence: float
+#     time: str 
+# 
+
 class AttendanceSchema(BaseModel):
-    teacher_id: str 
+    teacher_id: str
     classroom_id: str
-    teacher_name: str
-    teacher_date: dict 
+    name: str
+    teacher_date: dict
     confidence: float
-    time: str 
+    time: str
+    status: str
+    meeting_start: str
+    scan_time: str
+    late_minutes: int
 class TeacherSchema(BaseModel):
     name: str
     first_name: str

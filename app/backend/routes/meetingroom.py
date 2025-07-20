@@ -55,6 +55,203 @@ def preprocess_image(image_bytes):
     return img_array
 
 # @router.post("/predict_attendance", response_description="Predict and save teacher attendance")
+# async def predict_attendance(
+#     file: UploadFile = File(...),
+#     ## classroom data
+#     classroom_id: str = Form(...),
+#     ):
+#     try:
+#         contents = await file.read()
+#         img_array = preprocess_image(contents)
+
+#         prediction = model.predict(img_array)
+#         predicted_class_index = np.argmax(prediction)
+#         predicted_name = class_names[predicted_class_index]
+#         confidence = float(np.max(prediction))
+
+#         threshold = 0.70
+#         if confidence <= threshold:
+#             return {
+#                 "found": False,
+#                 "name": "Unknown",
+#                 "confidence": confidence * 100,
+#                 "message": f"❌ ບໍ່ຮູ້ຈັກບຸກຄົນ (confidence {confidence*100:.2f}%)",
+#                 "data": []
+#             }
+
+#         teacher = await teacher_controller.get_teacher_by_name(predicted_name)
+#         if not teacher:
+#             return {
+#                 "found": False,
+#                 "name": predicted_name,
+#                 "confidence": confidence * 100,
+#                 "message": "❌ ບໍ່ພົບຜູ້ນີ້ໃນລະບົບ",
+#                 "data": []
+#             }
+
+#         today = datetime.today().strftime('%Y-%m-%d')
+#         note = "ປັດຈບັນ"
+#         attendance_data = AttendanceSchema(
+#             teacher_id=str(teacher["_id"]),
+#             ## classroom data
+#             classroom_id=str(classroom_id), #classroom_id,
+#             teacher_name=teacher["name"],
+#             teacher_date={"day": today, "note": note},
+#             confidence=confidence,
+#             time=datetime.now().strftime('%H:%M:%S')
+#         )
+#         attendance_json = jsonable_encoder(attendance_data)
+#         result = await attendance_controller.add_attendance(attendance_json)
+
+#         return {
+#             "found": True,
+#             "name": predicted_name,
+#             "confidence": confidence * 100,
+#             "message": f"✅ ການສະແກນສຳເລັດ: {predicted_name} ({confidence*100:.2f}%)",
+#             "data": result["attendance"]
+#         }
+
+#     except HTTPException as e:
+#         return {
+#             "found": False,
+#             "name": "Unknown",
+#             "confidence": 0,
+#             "message": str(e.detail),
+#             "data": []
+#         }
+#     except Exception as e:
+#         return {
+#             "found": False,
+#             "name": "Unknown",
+#             "confidence": 0,
+#             "message": str(e),
+#             "data": []
+#         }
+
+
+
+
+@router.post("/predict_attendance", response_description="Predict and save teacher attendance")
+async def predict_attendance(
+    file: UploadFile = File(...),
+    classroom_id: str = Form(...)
+):
+    try:
+        contents = await file.read()
+        img_array = preprocess_image(contents)
+
+        prediction = model.predict(img_array)
+        predicted_class_index = np.argmax(prediction)
+        predicted_name = class_names[predicted_class_index]
+        confidence = float(np.max(prediction))
+        print(f"🎯 Predicted class index: {predicted_class_index}")
+        print(f"🎯 Predicted name: {predicted_name}")
+        print(f"🎯 Confidence: {confidence*100:.2f}%")
+        print(f"🔍 Searching teacher by name: {predicted_name}")
+
+        threshold = 0.70
+        if confidence <= threshold:
+            return {
+                "found": False,
+                "name": "Unknown",
+                "confidence": confidence * 100,
+                "message": f"❌ ບໍ່ຮູ້ຈັກບຸກຄົນ (confidence {confidence*100:.2f}%)",
+                "data": []
+            }
+
+        teacher = await teacher_controller.get_teacher_by_name(predicted_name)
+        print(f"🔍 Teacher found: {teacher}")
+        if not teacher:
+            return {
+                "found": False,
+                "name": predicted_name,
+                "confidence": confidence * 100,
+                "message": "❌ ບໍ່ພົບຜູ້ນີ້ໃນລະບົ",
+                "data": []
+            }
+
+        # ─── ดึงข้อมูลห้อง ───
+        classroom = await class_room_controller.get_class_room_by_id(classroom_id)
+        if not classroom:
+            raise HTTPException(status_code=404, detail="CLASS_ROOM_NOT_FOUND")
+
+        # หาเวลาเริ่มประชุม
+        meeting_start_dt = None
+        if "class_time" in classroom:  # ISO เช่น 2025-07-30T17:00:00.000Z
+            raw_time = classroom["class_time"]
+            # แปลง (รองรับมี 'Z')
+            if raw_time.endswith("Z"):
+                raw_time = raw_time.replace("Z", "+00:00")
+            meeting_start_dt = datetime.fromisoformat(raw_time)
+        elif "class_hour" in classroom:
+            # สมมุติ class_hour = "14:00-15:30"
+            today_str = datetime.today().strftime("%Y-%m-%d")
+            start_part = classroom["class_hour"].split("-")[0].strip()
+            meeting_start_dt = datetime.strptime(f"{today_str} {start_part}", "%Y-%m-%d %H:%M")
+        else:
+            # fallback: ใช้เวลาปัจจุบันเป็น meeting start
+            meeting_start_dt = datetime.now()
+
+        scan_dt = datetime.now()
+        late_delta = scan_dt - meeting_start_dt
+        late_minutes = int(late_delta.total_seconds() // 60)
+
+        if late_minutes <= 10:
+            status = "มา"
+        else:
+            status = "มาช้าแล้ว"
+
+        today = datetime.today().strftime('%Y-%m-%d')
+        note = "ປັດຈຸບັນ"
+
+        attendance_doc = AttendanceSchema(
+            teacher_id=str(teacher["_id"]),
+            classroom_id=classroom_id,
+            name=teacher["name"],
+            teacher_date={"day": today, "note": note},
+            confidence=confidence,
+            time=scan_dt.strftime('%H:%M:%S'),
+            status=status,
+            meeting_start=meeting_start_dt.isoformat(),
+            scan_time=scan_dt.isoformat(),
+            late_minutes=max(late_minutes, 0)
+        )
+
+        attendance_json = jsonable_encoder(attendance_doc)
+        result = await attendance_controller.add_attendance(attendance_json)
+
+        return {
+            "found": True,
+            "name": predicted_name,
+            "confidence": confidence * 100,
+            "status": status,
+            "late_minutes": max(late_minutes, 0),
+            "message": f"✅ {status}: {predicted_name} ({confidence*100:.2f}%)",
+            "data": result["attendance"]
+        }
+
+    except HTTPException as e:
+        return {
+            "found": False,
+            "name": "Unknown",
+            "confidence": 0,
+            "message": str(e.detail),
+            "data": []
+        }
+    except Exception as e:
+        return {
+            "found": False,
+            "name": "Unknown",
+            "confidence": 0,
+            "message": str(e),
+            "data": []
+        }
+
+
+#########  new code ########
+
+
+# @router.post("/predict_attendance", response_description="Predict and save teacher attendance")
 # async def predict_attendance(file: UploadFile = File(...)):
 #     try:
 #         contents = await file.read()
@@ -149,82 +346,3 @@ def preprocess_image(image_bytes):
 #     except Exception as e:
 #         return ErrorResponseModel(str(e), 500, "PREDICTION_ERROR",[])
     
-
-
-
-
-
-@router.post("/predict_attendance", response_description="Predict and save teacher attendance")
-async def predict_attendance(
-    file: UploadFile = File(...),
-    ## classroom data
-    classroom_id: str = Form(...),
-    ):
-    try:
-        contents = await file.read()
-        img_array = preprocess_image(contents)
-
-        prediction = model.predict(img_array)
-        predicted_class_index = np.argmax(prediction)
-        predicted_name = class_names[predicted_class_index]
-        confidence = float(np.max(prediction))
-
-        threshold = 0.70
-        if confidence <= threshold:
-            return {
-                "found": False,
-                "name": "Unknown",
-                "confidence": confidence * 100,
-                "message": f"❌ ບໍ່ຮູ້ຈັກບຸກຄົນ (confidence {confidence*100:.2f}%)",
-                "data": []
-            }
-
-        teacher = await teacher_controller.get_teacher_by_name(predicted_name)
-        if not teacher:
-            return {
-                "found": False,
-                "name": predicted_name,
-                "confidence": confidence * 100,
-                "message": "❌ ບໍ່ພົບຜູ້ນີ້ໃນລະບົບ",
-                "data": []
-            }
-
-        today = datetime.today().strftime('%Y-%m-%d')
-        note = "ປັດຈບັນ"
-        attendance_data = AttendanceSchema(
-            teacher_id=str(teacher["_id"]),
-            ## classroom data
-            classroom_id=str(classroom_id), #classroom_id,
-            teacher_name=teacher["name"],
-            teacher_date={"day": today, "note": note},
-            confidence=confidence,
-            time=datetime.now().strftime('%H:%M:%S')
-        )
-        attendance_json = jsonable_encoder(attendance_data)
-        result = await attendance_controller.add_attendance(attendance_json)
-
-        return {
-            "found": True,
-            "name": predicted_name,
-            "confidence": confidence * 100,
-            "message": f"✅ ການສະແກນສຳເລັດ: {predicted_name} ({confidence*100:.2f}%)",
-            "data": result["attendance"]
-        }
-
-    except HTTPException as e:
-        return {
-            "found": False,
-            "name": "Unknown",
-            "confidence": 0,
-            "message": str(e.detail),
-            "data": []
-        }
-    except Exception as e:
-        return {
-            "found": False,
-            "name": "Unknown",
-            "confidence": 0,
-            "message": str(e),
-            "data": []
-        }
-

@@ -23,4 +23,4 @@ class ClassRoomUpdateSchema(BaseModel):
     title: Optional[str] = None
     class_name: Optional[str] = None
     class_hour: Optional[Union[int, str]] = None
-    class_time: Optional[str] = None  # same as above
+    class_time: Optional[str]   # same as above

@@ -94,3 +94,12 @@ async def get_admin_id(admin_id: str):
         return ResponseUpdateTeacher(admin, "ADMIN_FOUND_SUCCESSFULLY")
     else:
         return ErrorResponseModel("Failed to find admin{0}".format(admin_id),404, "ADMIN_NOT_FOUND")
+    
+# Admin Delete Admin
+@router.delete("/delete_admin/{admin_id}", response_description="Delete admin")
+async def delete_admin(admin_id: str):
+    admin = await admin_controller.delete_admin(admin_id)
+    if admin:
+        return ResponseUpdateTeacher("Admin deleted successfully by admin:{0}".format(admin_id), "ADMIN_DELETED_SUCCESSFULLY")
+    else:
+        return ErrorResponseModel("Failed to delete admin{0}".format(admin_id),404, "ADMIN_DELETE_FAILED")

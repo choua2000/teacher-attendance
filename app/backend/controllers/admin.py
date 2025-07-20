@@ -84,4 +84,13 @@ class AdminController:
         if admin:
             return admin_helper(admin)
         return None
+    
+    # delete admin by id
+    async def delete_admin(self, admin_id: str) -> dict:
+        admin = await self.collection.find_one({"_id": ObjectId(admin_id)})
+        if admin:
+            await self.collection.delete_one({"_id": ObjectId(admin_id)})
+            return admin_helper(admin)
+        return None
+    
 admin_controller = AdminController(admins_collection)
