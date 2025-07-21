@@ -9,21 +9,51 @@ class ClassRoomController:
     def __init__(self, collection):
         self.collection = collection
      # ADD NEW CLASS_ROOM
+    # async def create_class_room(self, class_room_data: dict) -> dict:
+    #     existing = await self.collection.find_one({"class_hour": class_room_data["class_hour"]})
+    #     if existing:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail="CLASS_ROOM_ALREADY_EXISTS"
+    #         )
+
+    #     await self.collection.insert_one(class_room_data)
+    #     new_class_room = await self.collection.find_one({"class_hour": class_room_data["class_hour"]})
+    #     return {
+    #         "message": "CLASS_ROOM_CREATED_SUCCESSFULLY",
+    #         "class_room": class_room_helper(new_class_room)
+    #     }
+
+  # ADD NEW CLASS_ROOM
     async def create_class_room(self, class_room_data: dict) -> dict:
-        existing = await self.collection.find_one({"class_name": class_room_data["class_name"]})
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="CLASS_ROOM_ALREADY_EXISTS"
-            )
+     now = datetime.utcnow()
+     cutoff_time = now - timedelta(hours=24)
 
-        await self.collection.insert_one(class_room_data)
-        new_class_room = await self.collection.find_one({"class_name": class_room_data["class_name"]})
-        return {
-            "message": "CLASS_ROOM_CREATED_SUCCESSFULLY",
-            "class_room": class_room_helper(new_class_room)
-        }
+    # เพิ่ม field created_at ให้ record ที่จะ insert ใหม่
+     class_room_data["created_at"] = now
 
+    # หา record ที่ class_hour ซ้ำและสร้างไม่เกิน 24 ชั่วโมงที่ผ่านมา
+     existing = await self.collection.find_one({
+        "class_hour": class_room_data["class_hour"],
+        "class_time": class_room_data["class_time"],
+        "created_at": {"$gte": cutoff_time}
+    })
+
+     if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="CLASS_ROOM_ALREADY_EXISTS_WITHIN_24_HOURS"
+        )
+
+    # Insert ข้อมูลใหม่
+     await self.collection.insert_one(class_room_data)
+     new_class_room = await self.collection.find_one({"class_hour": class_room_data["class_hour"]})
+
+     return {
+        "message": "CLASS_ROOM_CREATED_SUCCESSFULLY",
+        "class_room": class_room_helper(new_class_room)
+    }
+    # UPDATE CLASS_ROOM
     async def update_class_room(self, class_room_id: str, update_data: dict) -> bool:
          if len(update_data) < 1:
             return False

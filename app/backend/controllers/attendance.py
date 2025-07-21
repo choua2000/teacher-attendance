@@ -33,7 +33,11 @@ class AttendanceController:
             )
 
         await self.collection.insert_one(attendance_data)
-        new_attendance = await self.collection.find_one({"teacher_id": attendance_data["teacher_id"], "teacher_date": attendance_data["teacher_date"],"classroom_id": attendance_data["classroom_id"]})
+        new_attendance = await self.collection.find_one({
+            "teacher_id": attendance_data["teacher_id"],
+            "teacher_date": attendance_data["teacher_date"],
+            "classroom_id": attendance_data["classroom_id"]}
+            )
 
         return {
             "message": "ATTENDANCE_ADDED_SUCCESSFULLY",
