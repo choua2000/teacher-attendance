@@ -29,7 +29,12 @@ async def update_class_room(
     if success:
         return ResponseUpdateClassRoom(f"Class Room updated successfully by admin: {class_room_id}", "CLASS_ROOM_UPDATED_SUCCESSFULLY")
     else:
-        return ErrorResponseModel(f"Failed to update class room: {class_room_id}", "CLASS_ROOM_UPDATE_FAILED")
+        return ErrorResponseModel(
+            error=f"Failed to update class room: {class_room_id}",
+            code="CLASS_ROOM_UPDATE_FAILED",
+            message="Unable to update classroom.",
+            data=None
+        )
 # get all class rooms
 @router.get("/get_all_class_rooms", response_description="Get all class rooms")
 async def get_all_class_rooms():

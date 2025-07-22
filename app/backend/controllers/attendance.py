@@ -29,7 +29,10 @@ class AttendanceController:
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="ATTENDANCE_ALREADY_EXISTS"
+                detail={
+                "code": "ATTENDANCE_ALREADY_EXISTS",
+                "message": "ຂໍ້ມູນການມາຮຽນຂອງອາຈານນີ້ມີແລ້ວໃນລະບົບ!"
+            }
             )
 
         await self.collection.insert_one(attendance_data)

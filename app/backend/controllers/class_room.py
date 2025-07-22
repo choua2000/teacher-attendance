@@ -25,29 +25,63 @@ class ClassRoomController:
     #     }
 
   # ADD NEW CLASS_ROOM
+    # async def create_class_room(self, class_room_data: dict) -> dict:
+    #  now = datetime.utcnow()
+    #  cutoff_time = now - timedelta(hours=24)
+
+    # # เพิ่ม field created_at ให้ record ที่จะ insert ใหม่
+    #  class_room_data["created_at"] = now
+
+    # # หา record ที่ class_hour ซ้ำและสร้างไม่เกิน 24 ชั่วโมงที่ผ่านมา
+    #  existing = await self.collection.find_one({
+    #     "class_hour": class_room_data["class_hour"],
+    #     "class_time": class_room_data["class_time"],
+    #     "created_at": {"$gte": cutoff_time}
+    # })
+
+    #  if existing:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="CLASS_ROOM_ALREADY_EXISTS_WITHIN_24_HOURS"
+    #     )
+
+    # # Insert ข้อมูลใหม่
+    #  await self.collection.insert_one(class_room_data)
+    #  new_class_room = await self.collection.find_one({"class_hour": class_room_data["class_hour"]})
+
+    #  return {
+    #     "message": "CLASS_ROOM_CREATED_SUCCESSFULLY",
+    #     "class_room": class_room_helper(new_class_room)
+    # }
+
+
     async def create_class_room(self, class_room_data: dict) -> dict:
      now = datetime.utcnow()
-     cutoff_time = now - timedelta(hours=24)
+    #  cutoff_time = now - timedelta(hours=24)
 
-    # เพิ่ม field created_at ให้ record ที่จะ insert ใหม่
+    # เพิ่มเวลา created_at ลงไปในข้อมูลใหม่
      class_room_data["created_at"] = now
 
-    # หา record ที่ class_hour ซ้ำและสร้างไม่เกิน 24 ชั่วโมงที่ผ่านมา
+    # ตรวจสอบว่ามี record ที่ class_hour, class_name และ class_time ซ้ำกันหรือไม่ ภายใน 24 ชม.
      existing = await self.collection.find_one({
         "class_hour": class_room_data["class_hour"],
+        "class_name": class_room_data["class_name"],
         "class_time": class_room_data["class_time"],
-        "created_at": {"$gte": cutoff_time}
+        # "created_at": {"$gte": cutoff_time}
     })
 
      if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="CLASS_ROOM_ALREADY_EXISTS_WITHIN_24_HOURS"
+            detail="CLASS_ROOM_ALREADY_EXISTS_WITH_SAME_TIME_AND_ROOM"
         )
 
-    # Insert ข้อมูลใหม่
+    # บันทึกข้อมูลใหม่ลงฐานข้อมูล
      await self.collection.insert_one(class_room_data)
-     new_class_room = await self.collection.find_one({"class_hour": class_room_data["class_hour"]})
+
+     new_class_room = await self.collection.find_one({
+        "_id": class_room_data["_id"] if "_id" in class_room_data else None
+    }) or class_room_data  # fallback if _id is missing
 
      return {
         "message": "CLASS_ROOM_CREATED_SUCCESSFULLY",
@@ -73,7 +107,7 @@ class ClassRoomController:
    # get all class rooms
     async def get_all_class_rooms(self):
         class_rooms = []
-        async for class_room in self.collection.find():
+        async for class_room in self.collection.find().sort("created_at", -1).limit(20):
             class_rooms.append(class_room_helper(class_room))
         return class_rooms
     # get class room by id

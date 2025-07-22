@@ -9,7 +9,9 @@ from app.backend.controllers.class_room import class_room_controller
 from app.backend.controllers.teacher import teacher_controller
 from app.backend.helper.index import ResponseModels, ErrorResponseModel
 from app.backend.helper.attendance import attendance_helper
-
+import torch
+import torchvision.transforms as transforms
+from torchvision import models
 import numpy as np
 from PIL import Image
 import io
@@ -20,33 +22,33 @@ router = APIRouter()
 # ✅ Load your model globally to avoid reloading every time
 # model = tf.keras.models.load_model("../models/model_facce/best_mobilenet_model.h5")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "../models/model_facce/best_model_23th.h5")
+MODEL_PATH = os.path.join(BASE_DIR, "../models/model_facce/best_model_2_2th.h5")
 # model = tf.keras.models.load_model(MODEL_PATH,custom_objects={'TrueDivide': tf.keras.layers.Lambda(lambda x: x)} )
 model = tf.keras.models.load_model(MODEL_PATH, custom_objects={'TrueDivide': tf.math.truediv})
 class_names = [
-    "AJ Amone",
-    "AJ Bouasod",
-    "AJ Bounmee",
-    "AJ Chidnavan",
-    "AJ Khamkon",
-    "AJ Khamla",
-    "AJ Latsamee",
-    "AJ Muenphin",
-    "AJ Ngaviset",
-    "AJ Oladee",
-    "AJ Ouksavan",
-    "AJ Phonsouda",
-    "AJ Phouthon",
-    "AJ Siarmphone",
-    "AJ Sommany",
-    "AJ Sommid",
-    "AJ Soupkasert",
-    "AJ Soulid",
-    "AJ Soupaivi",
-    "AJ Thongsing",
-    "AJ Vilaisak",
-    "Choua",
-    "Thongchan",
+    # "AJ Amone",
+    # "AJ Bouasod",
+    # "AJ Bounmee",
+    # "AJ Chidnavan",
+    # "AJ Khamkon",
+    # "AJ Khamla",
+    # "AJ Latsamee",
+    # "AJ Muenphin",
+    # "AJ Ngaviset",
+    # "AJ Oladee",
+    # "AJ Ouksavan",
+    # "AJ Phonsouda",
+    # "AJ Phouthon",
+    # "AJ Siarmphone",
+    # "AJ Sommany",
+    # "AJ Sommid",
+    # "AJ Soupkasert",
+    # "AJ Soulid",
+    # "AJ Soupaivi",
+    # "AJ Thongsing",
+    # "AJ Vilaisak",
+    # "Choua",
+    "Thongchan"
 ]  
 
 def preprocess_image(image_bytes):
@@ -68,12 +70,12 @@ async def predict_attendance(
 
         prediction = model.predict(img_array)
         predicted_class_index = np.argmax(prediction)
-        predicted_name = class_names[predicted_class_index]
+        predicted_name = class_names[predicted_class_index] 
         confidence = float(np.max(prediction))
-        print(f"Predicted class: {predicted_name}")
-        print(f"Confidence: {confidence}")
-        print(f"Predicted class index: {predicted_class_index}")
-        print(f"prediction: {prediction}")
+        # print(f"Predicted class: {predicted_name}")
+        # print(f"Confidence: {confidence}")
+        # print(f"Predicted class index: {predicted_class_index}")
+        # print(f"prediction: {prediction}")
         threshold = 0.70
         if confidence <= threshold:
             return {
